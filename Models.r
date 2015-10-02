@@ -53,6 +53,8 @@ gbm1<-gbm((outcome)~.,data=train_avg_tmp[positions,],n.trees=5000,interaction.de
 pred_gbm=predict(gbm1,train_avg_tmp[-positions,],n.trees=5000,type="response")
 roc(train_avg_tmp[-positions,10],(pred_gbm))
 
+
+#Ensemble: linear combination of two types of models
 w=0.01
 b=0.5
 summary(train_avg_tmp)
@@ -127,14 +129,17 @@ b=0.7
 submit$prediction=0.01*pred_ada_prob[,2]+w*pred_rf2[,2]+b*(pred_svm_prob)+(1-w-b-0.01)*pred_rf[,2]
 
 
+
+
+
+#Cross Validation 
+#4-fold cross validation: find out the best linear combination weights
 w_list=c(0.15,0.2,0.3)
 b_list=c(0.6,0.62,0.65,0.67)
 
 start=1
 end=1
 lis=rep(0,(length(w_list)*length(b_list)))
-#Cross Validation 
-#4-fold cross validation
 foreach(i =c(1:4)) %do% {
   if(i<4){
     end = as.integer(start+nrow(train_avg_tmp)/4)
