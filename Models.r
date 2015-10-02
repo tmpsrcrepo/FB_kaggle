@@ -41,14 +41,15 @@ library(gbm)
 library(pROC)
 library(caret)
 
-#model exploration
+#model exploration: 
 #feature set1:
+#Random Forest
 rf1_<-randomForest(train_avg_tmp[positions,-10],as.factor(train_avg_tmp[positions,10]),ntree=5000,mtry=3)
 pred_c=predict(rf1,train_avg_tmp[-positions,],'prob')
 roc(train_avg_tmp[-positions,10],(pred_c[,2]))
 
+#Gradient Boosting 
 gbm1<-gbm((outcome)~.,data=train_avg_tmp[positions,],n.trees=5000,interaction.depth=3,shrinkage=0.1,bag.fraction = 0.3)
-
 pred_gbm=predict(gbm1,train_avg_tmp[-positions,],n.trees=5000,type="response")
 roc(train_avg_tmp[-positions,10],(pred_gbm))
 
@@ -69,6 +70,7 @@ adaFit$final
 ada.pred_ <- predict(adaFit$final, train_avg_tmp[-positions,],'prob')
 roc(train_avg_tmp[-positions,10],ada.pred_[,2])
 
+#SVM
 library(e1071)
 fitControl <- trainControl(number = 5,method = "cv",classProbs=TRUE,summaryFunction = twoClassSummary)
 svmFit<-train(as.factor(outcome)~.,data=train_avg_tmp,method='svmRadial',trControl=fitControl,
@@ -85,11 +87,13 @@ train_df2_$outcome = train_avg_tmp[,10]
 dim(train_df2_)
 test_df2_ =test_df2[,c(3,5:13)]
 
+#random forest
 positions <- sample(nrow(tmp_train),size=floor((nrow(train)/3)*2))
 rf2_<-randomForest(train_df2_[positions,-11],as.factor(train_df2_[positions,11]),ntree=5000,mtry=2)
 pred_c2=predict(rf2_,train_df2_[-positions,],'prob')
 roc(train_df2_[-positions,11],(pred_c2[,2]))
 
+#SVM
 fitControl <- trainControl(number = 5,method = "cv",classProbs=TRUE,summaryFunction = twoClassSummary)
 svmFit2<-train(as.factor(outcome)~.,data=train_df2_,method='svmRadial',trControl=fitControl,
               preProcess=c('center','scale'),tuneLength=8,metric='ROC')
@@ -105,7 +109,7 @@ svm_full <- svm(factor(outcome)~., data=train_avg_tmp, kernel='radial', sigma=1.
 adaFit$final
 
 
-
+#get prediction results on the test set
 pred_rf=predict(rf_full,test_avg,'prob')
 pred_rf2=predict(rf2_full,test_df2_,'prob')
 pred_gb=predict(gbm_full,test_avg,n.trees=5000,type="response")
@@ -114,6 +118,7 @@ pred_svm_prob=((attr(pred_svm,"probabilities"))[,2])
 pred_ada_prob =predict(adaFit$final,test_avg,'prob')
 
 
+#Ensemble model
 w=0.01 
 b=0.005
 
@@ -122,14 +127,13 @@ b=0.7
 submit$prediction=0.01*pred_ada_prob[,2]+w*pred_rf2[,2]+b*(pred_svm_prob)+(1-w-b-0.01)*pred_rf[,2]
 
 
-
 w_list=c(0.15,0.2,0.3)
 b_list=c(0.6,0.62,0.65,0.67)
 
 start=1
 end=1
 lis=rep(0,(length(w_list)*length(b_list)))
-
+#Cross Validation 
 #4-fold cross validation
 foreach(i =c(1:4)) %do% {
   if(i<4){
@@ -176,7 +180,7 @@ submit$prediction=0.02*pred_ada_prob[,2]+0.3*pred_rf2[,2]+0.65*(pred_svm_prob)+(
 
 write.csv(submit,'ensemble__0.02_0.3_0.65.csv')
 
-
+#Use Parallel package and grid search to look for the best model candidate for GBM
 library(doParallel)
 cluster=makeCluster(3)
 registerDoParallel(cluster)
